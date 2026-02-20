@@ -157,6 +157,43 @@ public class Main {
         iceDragon.displayInfo();
         System.out.println();
 
+        // ============================================================
+// Prototype: register 3rd template (Skeleton) + create variants
+// ============================================================
+
+// Base Skeleton template (simple enemy)
+        Enemy skeletonTemplate = new com.narxoz.rpg.enemy.Skeleton("Skeleton Template");
+
+// Optional: give it some default theme components (можно оставить пустым)
+// Здесь логика такая: базовый template можно оставить "голым",
+// а темы/дроп/абилки выдавать уже вариантам через Abstract Factory.
+        registry.registerTemplate("skeleton", skeletonTemplate);
+
+        System.out.println("\n[Registry] Templates registered: " + registry.listTemplates());
+
+        System.out.println("\n[Prototype] Variants from 'skeleton' template:");
+
+// Variant #1: Elite Skeleton (2x stats)
+        Enemy eliteSkeleton = registry.createFromTemplate("skeleton");
+        eliteSkeleton.multiplyStats(2.0);
+        eliteSkeleton.setAIBehavior("DEFENSIVE");
+        System.out.println("-> Elite Skeleton (2x)");
+        eliteSkeleton.displayInfo();
+
+// Variant #2: Shadow Skeleton (themed components)
+        Enemy shadowSkeleton = registry.createFromTemplate("skeleton");
+        shadowSkeleton.multiplyStats(1.5);
+        shadowSkeleton.setElement("SHADOW");
+
+// Используем Abstract Factory компоненты для Shadow-темы
+        shadowSkeleton.setAbilities(shadowFactory.createAbilities());
+        shadowSkeleton.setLootTable(shadowFactory.createLootTable());
+        shadowSkeleton.setAIBehavior(shadowFactory.createAIBehavior());
+
+        System.out.println("\n-> Shadow Skeleton (1.5x + themed components)");
+        shadowSkeleton.displayInfo();
+
+
         // ---- DEEP COPY PROOF ----
         System.out.println("============================================");
         System.out.println("DEEP COPY PROOF (modify clone -> template unchanged)");
