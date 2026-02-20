@@ -31,4 +31,5 @@ public class IceComponentFactory implements EnemyComponentFactory {
     @Override
     public String createAIBehavior() {
         return "DEFENSIVE";
+    }
 }
