@@ -185,6 +185,16 @@ public class Main {
         shadowSkeleton.multiplyStats(1.5);
         shadowSkeleton.setElement("SHADOW");
 
+        // Variant #3: Champion Skeleton (difficulty + extra ability)
+        Enemy championSkeleton = registry.createFromTemplate("skeleton");
+        championSkeleton.multiplyStats(3.0);
+        championSkeleton.setAIBehavior("AGGRESSIVE"); // например, стал более опасным
+        championSkeleton.addAbility(new com.narxoz.rpg.combat.fire.FlameBreath()); // extra ability
+
+        System.out.println("\n-> Champion Skeleton (3x + extra ability)");
+        championSkeleton.displayInfo();
+
+
 // Используем Abstract Factory компоненты для Shadow-темы
         shadowSkeleton.setAbilities(shadowFactory.createAbilities());
         shadowSkeleton.setLootTable(shadowFactory.createLootTable());
