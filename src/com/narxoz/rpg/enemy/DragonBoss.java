@@ -9,10 +9,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Example complex boss enemy — THE REASON BUILDER PATTERN EXISTS.
+ * Complex boss enemy — the reason Builder exists.
  *
- * Telescoping constructor is intentionally here to show the pain.
- * Later, you will refactor construction through Builder.
+ * Prototype:
+ * clone() MUST be deep copy:
+ *  - abilities: new list + clone each Ability
+ *  - lootTable: clone
+ *  - phases: new map copy
+ *
+ * Builder-friendly:
+ * Ideally constructed via BossEnemyBuilder (not direct telescoping calls).
  */
 public class DragonBoss implements Enemy {
 
@@ -23,20 +29,14 @@ public class DragonBoss implements Enemy {
     private int defense;
     private int speed;
 
-    // --- Elemental Theme ---
-    private String element;
+    // --- Theme / Behavior ---
+    private String element;      // "FIRE", "ICE", "SHADOW", "NONE"
+    private String aiBehavior;   // "AGGRESSIVE", "DEFENSIVE", "TACTICAL"
 
-    // --- Abilities ---
+    // --- Components ---
     private List<Ability> abilities;
-
-    // --- Boss Phases (health thresholds that trigger behavior changes) ---
-    private Map<Integer, Integer> phases;
-
-    // --- Loot ---
+    private Map<Integer, Integer> phases; // phase -> hp threshold
     private LootTable lootTable;
-
-    // --- AI Behavior ---
-    private String aiBehavior;
 
     // --- Special Properties ---
     private boolean canFly;
@@ -44,8 +44,11 @@ public class DragonBoss implements Enemy {
     private int wingspan;
 
     /**
-     * THE TELESCOPING CONSTRUCTOR FROM HELL.
-     * (Later should be used only by Builder / or made package-private)
+     * Legacy telescoping constructor.
+     * You may keep it for now, but in practice call it from Builder only.
+     *
+     * TIP: You can change this to package-private (remove 'public')
+     * so only builders in the same package can call it.
      */
     public DragonBoss(String name, int health, int damage, int defense,
                       int speed, String element,
@@ -59,26 +62,33 @@ public class DragonBoss implements Enemy {
         this.damage = damage;
         this.defense = defense;
         this.speed = speed;
-        this.element = element;
 
-        this.abilities = (abilities != null) ? abilities : new ArrayList<>();
+        this.element = (element == null || element.trim().isEmpty()) ? "NONE" : element.trim().toUpperCase();
+        this.aiBehavior = (aiBehavior == null || aiBehavior.trim().isEmpty()) ? "AGGRESSIVE" : aiBehavior.trim().toUpperCase();
+
+        this.abilities = new ArrayList<>();
+        if (abilities != null) {
+            for (Ability a : abilities) {
+                this.abilities.add(a.clone());
+            }
+        }
 
         this.phases = new HashMap<>();
-        this.phases.put(1, phase1Threshold);
-        this.phases.put(2, phase2Threshold);
-        this.phases.put(3, phase3Threshold);
+        // Add only if > 0 to avoid weird zero thresholds
+        if (phase1Threshold > 0) this.phases.put(1, phase1Threshold);
+        if (phase2Threshold > 0) this.phases.put(2, phase2Threshold);
+        if (phase3Threshold > 0) this.phases.put(3, phase3Threshold);
 
-        this.lootTable = lootTable;
-        this.aiBehavior = aiBehavior;
+        this.lootTable = (lootTable == null) ? null : lootTable.clone();
 
         this.canFly = canFly;
         this.hasBreathAttack = hasBreathAttack;
         this.wingspan = wingspan;
     }
 
-    // ============================================================
-    // Enemy interface methods
-    // ============================================================
+    // ----------------------------------------------------------------------
+    // Enemy getters
+    // ----------------------------------------------------------------------
 
     @Override
     public String getName() {
@@ -117,7 +127,8 @@ public class DragonBoss implements Enemy {
 
     @Override
     public List<Ability> getAbilities() {
-        return abilities;
+        // defensive copy
+        return new ArrayList<>(abilities);
     }
 
     @Override
@@ -127,8 +138,13 @@ public class DragonBoss implements Enemy {
 
     @Override
     public Map<Integer, Integer> getPhases() {
-        return phases;
+        // defensive copy
+        return new HashMap<>(phases);
     }
+
+    // ----------------------------------------------------------------------
+    // Demo display
+    // ----------------------------------------------------------------------
 
     @Override
     public void displayInfo() {
@@ -144,8 +160,7 @@ public class DragonBoss implements Enemy {
 
         System.out.println("Boss Phases: " + phases.size());
         for (Map.Entry<Integer, Integer> phase : phases.entrySet()) {
-            System.out.println("  Phase " + phase.getKey()
-                    + ": triggers at " + phase.getValue() + " HP");
+            System.out.println("  Phase " + phase.getKey() + ": triggers at " + phase.getValue() + " HP");
         }
 
         System.out.println("AI Behavior: " + aiBehavior);
@@ -153,35 +168,34 @@ public class DragonBoss implements Enemy {
                 + " | Breath Attack: " + hasBreathAttack
                 + " | Wingspan: " + wingspan);
 
-        System.out.println(lootTable == null ? "Loot: (none)" : lootTable.getLootInfo());
-        System.out.println();
+        if (lootTable != null) {
+            System.out.println(lootTable.getLootInfo());
+        } else {
+            System.out.println("No loot table set.");
+        }
     }
 
-    /**
-     * Prototype pattern — DEEP COPY.
-     *
-     * Deep copy required fields:
-     * - abilities: new list + clone each ability
-     * - phases: new map copy
-     * - lootTable: clone
-     */
+    // ----------------------------------------------------------------------
+    // Prototype (DEEP COPY)
+    // ----------------------------------------------------------------------
+
     @Override
     public Enemy clone() {
-        // Deep copy abilities
-        List<Ability> abilitiesCopy = new ArrayList<>();
+        // Deep copy abilities list
+        List<Ability> abilityCopies = new ArrayList<>();
         for (Ability a : this.abilities) {
-            abilitiesCopy.add(a.clone());
+            abilityCopies.add(a.clone());
         }
 
-        // Deep copy loot
+        // Clone loot
         LootTable lootCopy = (this.lootTable == null) ? null : this.lootTable.clone();
 
-        // Copy phases (Integer->Integer, safe to copy entries)
+        // Build via constructor (phases as 3 thresholds)
+        // If you may have more than 3 phases, we will still deep-copy them after construction.
         int p1 = this.phases.getOrDefault(1, 0);
         int p2 = this.phases.getOrDefault(2, 0);
         int p3 = this.phases.getOrDefault(3, 0);
 
-        // Create new DragonBoss
         DragonBoss copy = new DragonBoss(
                 this.name,
                 this.health,
@@ -189,7 +203,7 @@ public class DragonBoss implements Enemy {
                 this.defense,
                 this.speed,
                 this.element,
-                abilitiesCopy,
+                abilityCopies,
                 p1, p2, p3,
                 lootCopy,
                 this.aiBehavior,
@@ -198,40 +212,74 @@ public class DragonBoss implements Enemy {
                 this.wingspan
         );
 
-        // If later you add more phases than 3, keep them too:
+        // If phases map contains extra phases (4+), preserve them too.
         copy.phases = new HashMap<>(this.phases);
 
         return copy;
     }
 
-    // ============================================================
+    // ----------------------------------------------------------------------
     // Variant helpers (for Prototype variants)
-    // ============================================================
+    // ----------------------------------------------------------------------
 
     @Override
     public void addAbility(Ability ability) {
-        this.abilities.add(ability);
+        if (ability == null) return;
+        this.abilities.add(ability.clone());
+    }
+
+    @Override
+    public void setAbilities(List<Ability> abilities) {
+        this.abilities = new ArrayList<>();
+        if (abilities == null) return;
+        for (Ability a : abilities) {
+            this.abilities.add(a.clone());
+        }
+    }
+
+    @Override
+    public void setLootTable(LootTable lootTable) {
+        this.lootTable = (lootTable == null) ? null : lootTable.clone();
     }
 
     @Override
     public void setElement(String element) {
-        this.element = element;
+        this.element = (element == null || element.trim().isEmpty()) ? "NONE" : element.trim().toUpperCase();
+    }
+
+    @Override
+    public void setAIBehavior(String aiBehavior) {
+        this.aiBehavior = (aiBehavior == null || aiBehavior.trim().isEmpty()) ? "AGGRESSIVE" : aiBehavior.trim().toUpperCase();
     }
 
     @Override
     public void multiplyStats(double multiplier) {
+        if (multiplier <= 0) return;
         this.health = (int) Math.round(this.health * multiplier);
         this.damage = (int) Math.round(this.damage * multiplier);
         this.defense = (int) Math.round(this.defense * multiplier);
         this.speed = (int) Math.round(this.speed * multiplier);
     }
 
-    // Optional: Builder will set these (можно оставить public пока, потом закроем)
-    public void setLootTable(LootTable lootTable) {
-        this.lootTable = lootTable;
+    /**
+     * Convenience for bosses: add/override a phase threshold.
+     */
+    public void addPhase(int phaseNumber, int healthThreshold) {
+        if (phaseNumber <= 0) return;
+        if (healthThreshold <= 0) return;
+        this.phases.put(phaseNumber, healthThreshold);
     }
 
-    public void setAIBehavior(String aiBehavior) {
-        this.aiBehavior = aiBehavior;
+    // Optional getters for special properties (if you want them in demo / UML)
+    public boolean canFly() {
+        return canFly;
+    }
+
+    public boolean hasBreathAttack() {
+        return hasBreathAttack;
+    }
+
+    public int getWingspan() {
+        return wingspan;
     }
 }
